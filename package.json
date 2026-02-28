@@ -1,0 +1,48 @@
+{
+  "name": "@openclaw/feishu",
+  "version": "2026.2.28",
+  "description": "OpenClaw Feishu/Lark channel plugin with Bot Registry — enable multi-bot conversations in Feishu groups",
+  "type": "module",
+  "keywords": [
+    "openclaw",
+    "feishu",
+    "lark",
+    "chatbot",
+    "bot-registry",
+    "multi-bot",
+    "ai-agent"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/m1heng/openclaw-feishu"
+  },
+  "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.59.0",
+    "@sinclair/typebox": "0.34.48",
+    "zod": "^4.3.6"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "channel": {
+      "id": "feishu",
+      "label": "Feishu",
+      "selectionLabel": "Feishu/Lark (飞书)",
+      "docsPath": "/channels/feishu",
+      "docsLabel": "feishu",
+      "blurb": "飞书/Lark enterprise messaging with Bot Registry for multi-bot conversations.",
+      "aliases": [
+        "lark"
+      ],
+      "order": 35,
+      "quickstartAllowFrom": true
+    },
+    "install": {
+      "npmSpec": "@openclaw/feishu",
+      "localPath": "extensions/feishu",
+      "defaultChoice": "npm"
+    }
+  }
+}
