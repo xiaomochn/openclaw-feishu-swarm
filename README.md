@@ -46,23 +46,32 @@ Swarm 通过一个中继 Registry 打破了这个限制，让同群的多个 AI 
 - [OpenClaw](https://github.com/openclaw/openclaw) 已安装
 - 至少两个飞书自建应用（各自有 App ID + App Secret）
 
-### 一键安装
+### 安装
+
+插件 id 为 `feishu`，安装后会**自动替换**内置的飞书插件，不会同时存在两个。
 
 ```bash
-# 克隆 + 安装依赖 + 注册为 OpenClaw 插件（替换内置飞书插件）
+# 一键安装：克隆 → 装依赖 → 注册插件 → 重启网关
 git clone https://github.com/xiaomochn/openclaw-feishu-swarm.git
-cd openclaw-feishu-swarm && npm install && openclaw plugins install --link .
+cd openclaw-feishu-swarm
+npm install
+openclaw plugins install .
+openclaw gateway restart
 ```
 
-或者不想 clone 的话，直接用 npm 安装（发布后可用）：
+> **想保持同步更新？** 用 `--link` 模式安装，之后 `git pull` 就能拿到最新代码：
+> ```bash
+> openclaw plugins install --link .
+> ```
 
+验证安装成功：
 ```bash
-openclaw plugins install openclaw-feishu-swarm
+openclaw plugins list   # 应该看到 feishu 插件指向 swarm 的路径
 ```
 
-安装完重启网关生效：
-
+卸载（恢复官方插件）：
 ```bash
+openclaw plugins uninstall feishu
 openclaw gateway restart
 ```
 
