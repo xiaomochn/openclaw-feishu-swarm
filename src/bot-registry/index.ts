@@ -6,6 +6,9 @@ import { notifySent, setCachedBotIdentity } from "./notify.js";
 import { registerWithRegistry, buildRegistrationPayload } from "./register.js";
 import { connectToRegistryMulti } from "./ws-client.js";
 import { listEnabledFeishuAccounts } from "../accounts.js";
+import { writeFileSync, mkdirSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { homedir } from "node:os";
 import type { FeishuConfig } from "../types.js";
 import { probeFeishu } from "../probe.js";
 import { listFeishuDirectoryGroupsLive } from "../directory.js";
@@ -13,6 +16,66 @@ import { listFeishuDirectoryGroupsLive } from "../directory.js";
 export { configSchemaFragment, getRegistryConfig } from "./config.js";
 export { notifySent, setCachedBotIdentity } from "./notify.js";
 export type { RegistryCopyPayload, RegistryInboundPayload, RegistryRegistrationPayload } from "./types.js";
+
+/**
+ * Write peers info to the bot's workspace so the agent knows how to @mention other bots.
+ * Creates/overwrites {workspace}/PEERS.md with at-tag format instructions.
+ */
+function writePeersFile(workspace: string | undefined, selfName: string | undefined, selfOpenId: string, peers: Array<{ bot_open_id: string; bot_name?: string }>): void {
+  if (!workspace) return;
+  const resolvedWs = workspace.replace(/^~/, homedir());
+  try {
+    const lines: string[] = [
+      "# Peers - 同群机器人列表",
+      "",
+      "> 本文件由 Bot Registry 自动生成，请勿手动编辑。",
+      "> 在飞书群里 @其他机器人时，使用 `<at user_id=\"open_id\">名称</at>` 格式。",
+      "",
+      "## 我的信息",
+      "",
+      `- **名称**: ${selfName ?? "未知"}`,
+      `- **open_id**: ${selfOpenId}`,
+      `- **at 格式**: \`<at user_id="${selfOpenId}">${selfName ?? ""}</at>\``,
+      "",
+      "## 同群机器人",
+      "",
+    ];
+    if (peers.length === 0) {
+      lines.push("暂无同群机器人。");
+    } else {
+      for (const p of peers) {
+        lines.push(`### ${p.bot_name ?? p.bot_open_id}`);
+        lines.push("");
+        lines.push(`- **open_id**: ${p.bot_open_id}`);
+        lines.push(`- **at 格式**: \`<at user_id="${p.bot_open_id}">${p.bot_name ?? ""}</at>\``);
+        lines.push("");
+      }
+    }
+    lines.push("");
+    lines.push("## 使用示例");
+    lines.push("");
+    lines.push("在发送飞书消息时，要 @某个机器人，在消息内容里插入对应的 at 标签即可：");
+    lines.push("");
+    if (peers.length > 0) {
+      const example = peers[0];
+      lines.push(`\`\`\``)
+      lines.push(`<at user_id="${example.bot_open_id}">${example.bot_name ?? ""}</at> 你好，请帮我看看这个问题`);
+      lines.push(`\`\`\``);
+    } else {
+      lines.push("```");
+      lines.push(`<at user_id="ou_xxxxxxx">机器人名</at> 你好`);
+      lines.push("```");
+    }
+    lines.push("");
+
+    mkdirSync(resolvedWs, { recursive: true });
+    writeFileSync(join(resolvedWs, "PEERS.md"), lines.join("\n"), "utf-8");
+    console.log("[feishu bot-registry] 已写入 PEERS.md → " + join(resolvedWs, "PEERS.md") + " peers=" + peers.length);
+  } catch (err) {
+    console.error("[feishu bot-registry] 写入 PEERS.md 失败:", err);
+  }
+}
+
 
 const INBOUND_PATH = "/channels/feishu/bot-registry/inbound";
 
@@ -97,8 +160,9 @@ export function init(options: InitOptions): void {
       const label = account.accountId;
       console.log("[feishu bot-registry] 启动 WS 连接 account=" + label + " appId=" + acctCfg.appId + " url=" + wsUrl);
 
-      // Track bot_open_id resolved during registration, for use in onInbound
+      // Track bot identity resolved during registration, for use in onInbound and peer file
       let resolvedBotOpenId = "";
+      let resolvedBotName = "";
 
       connectToRegistryMulti(label, {
         wsUrl,
@@ -111,6 +175,7 @@ export function init(options: InitOptions): void {
           console.log("[feishu bot-registry:" + label + "] 探活成功 bot_open_id=" + probe.botOpenId + " bot_name=" + (probe.botName ?? ""));
 
           resolvedBotOpenId = probe.botOpenId;
+          resolvedBotName = probe.botName ?? "";
           setCachedBotIdentity(acctCfg.appId, probe.botOpenId, label, probe.botName);
 
           const groups = await listFeishuDirectoryGroupsLive({ cfg: typedCfg, limit: 200 });
@@ -132,8 +197,12 @@ export function init(options: InitOptions): void {
         onInbound: (payload) => {
           handleInboundPayload(payload, getCfg, label, resolvedBotOpenId);
         },
-        onRegistered: () => {
-          console.log("[feishu bot-registry:" + label + "] WS 注册成功（Registry 已确认）");
+        onRegistered: (peers) => {
+          console.log("[feishu bot-registry:" + label + "] WS 注册成功（Registry 已确认）peers=" + (peers?.length ?? 0));
+          const ws = (acctCfg as { workspace?: string }).workspace;
+          if (peers) {
+            writePeersFile(ws, resolvedBotName, resolvedBotOpenId, peers);
+          }
         },
         onError: (err) => {
           console.error("[feishu bot-registry:" + label + "] WS 连接错误:", err);

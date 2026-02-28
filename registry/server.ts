@@ -200,7 +200,8 @@ async function handleRegister(req: import("node:http").IncomingMessage, res: imp
     if (!result.ok) {
       send(res, 400, { error: result.error ?? "Bad Request" });
     } else {
-      send(res, 200, { ok: true });
+      const peers = getPeersForBot(body.bot_open_id);
+      send(res, 200, { ok: true, peers });
     }
   } catch (e) {
     console.error("[registry] 注册请求解析失败:", e);
@@ -435,6 +436,26 @@ const server = createServer(async (req, res) => {
 
 // ── WebSocket server (upgrade on /ws path) ───────────────────────────────
 
+
+/**
+ * Get peer bots that share at least one group with the given bot.
+ * Returns list of { bot_open_id, bot_name } for the registering bot to know who else is around.
+ */
+function getPeersForBot(botOpenId: string): Array<{ bot_open_id: string; bot_name?: string }> {
+  const self = bots.get(botOpenId);
+  if (!self) return [];
+  const selfGroups = new Set(self.group_chat_ids ?? []);
+  const peers: Array<{ bot_open_id: string; bot_name?: string }> = [];
+  for (const [id, bot] of bots) {
+    if (id === botOpenId) continue;
+    const shared = (bot.group_chat_ids ?? []).some((g) => selfGroups.has(g));
+    if (shared) {
+      peers.push({ bot_open_id: id, bot_name: bot.bot_name });
+    }
+  }
+  return peers;
+}
+
 const wss = new WebSocketServer({ noServer: true });
 
 server.on("upgrade", (req, socket, head) => {
@@ -505,7 +526,8 @@ wss.on("connection", (wsConn: WsWebSocket, req: import("node:http").IncomingMess
           }
           wsConnections.set(payload.bot_open_id, wsConn);
           wsConnToBotId.set(wsConn, payload.bot_open_id);
-          wsSendJson(wsConn, { type: "registered", payload: { ok: true } });
+          const peers = getPeersForBot(payload.bot_open_id);
+          wsSendJson(wsConn, { type: "registered", payload: { ok: true, peers } });
           console.log("[registry] WS bot 已注册并跟踪连接 bot_open_id=" + payload.bot_open_id);
         } else {
           wsSendJson(wsConn, { type: "error", payload: { message: result.error ?? "Registration failed" } });

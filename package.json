@@ -1,21 +1,21 @@
 {
-  "name": "@openclaw/feishu",
+  "name": "openclaw-feishu-swarm",
   "version": "2026.2.28",
-  "description": "OpenClaw Feishu/Lark channel plugin with Bot Registry — enable multi-bot conversations in Feishu groups",
+  "description": "OpenClaw Feishu plugin with Bot Registry — multi-bot group chat via WebSocket relay",
   "type": "module",
   "keywords": [
     "openclaw",
     "feishu",
     "lark",
-    "chatbot",
-    "bot-registry",
-    "multi-bot",
-    "ai-agent"
+    "bot",
+    "multi-agent",
+    "swarm",
+    "registry"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/m1heng/openclaw-feishu"
+    "url": "https://github.com/xiaomochn/openclaw-feishu-swarm.git"
   },
   "dependencies": {
     "@larksuiteoapi/node-sdk": "^1.59.0",
@@ -44,5 +44,6 @@
       "localPath": "extensions/feishu",
       "defaultChoice": "npm"
     }
-  }
+  },
+  "author": "xiaomochn"
 }

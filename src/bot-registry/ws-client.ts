@@ -24,8 +24,8 @@ export type WsClientOptions = {
   getRegistrationPayload: () => RegistryRegistrationPayload | Promise<RegistryRegistrationPayload>;
   /** Called when Registry forwards an inbound message via WS */
   onInbound: (payload: RegistryInboundPayload) => void;
-  /** Called when registration is acknowledged */
-  onRegistered?: () => void;
+  /** Called when registration is acknowledged (peers = other bots sharing groups) */
+  onRegistered?: (peers?: Array<{ bot_open_id: string; bot_name?: string }>) => void;
   /** Called on WS errors (informational) */
   onError?: (err: unknown) => void;
   /** Label for log messages (e.g. accountId) */
@@ -123,11 +123,13 @@ export class WsRegistryClient {
     } catch { console.warn(this.tag, "WS received non-JSON message, ignoring"); return; }
 
     switch (msg.type) {
-      case "registered":
+      case "registered": {
         this._registered = true;
-        console.log(this.tag, "WS registration acknowledged by Registry");
-        this.opts.onRegistered?.();
+        const peers = (msg.payload as { peers?: Array<{ bot_open_id: string; bot_name?: string }> })?.peers;
+        console.log(this.tag, "WS registration acknowledged by Registry, peers:", peers?.length ?? 0);
+        this.opts.onRegistered?.(peers);
         break;
+      }
       case "inbound":
         console.log(this.tag, "WS received inbound message, chat=" + msg.payload?.chat_id);
         this.opts.onInbound?.(msg.payload);
