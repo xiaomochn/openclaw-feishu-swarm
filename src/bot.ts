@@ -604,13 +604,13 @@ export async function handleFeishuMessage(params: {
   if (isGroup) {
     const defaultGroupPolicy = resolveDefaultGroupPolicy(cfg);
     const { groupPolicy, providerMissingFallbackApplied } = resolveOpenProviderRuntimeGroupPolicy({
-      providerConfigPresent: cfg.channels?.feishu !== undefined,
+      providerConfigPresent: cfg.channels?.["feishu-swarm"] !== undefined,
       groupPolicy: feishuCfg?.groupPolicy,
       defaultGroupPolicy,
     });
     warnMissingProviderGroupPolicyFallbackOnce({
       providerMissingFallbackApplied,
-      providerKey: "feishu",
+      providerKey: "feishu-swarm",
       accountId: account.accountId,
       log,
     });
@@ -678,7 +678,7 @@ export async function handleFeishuMessage(params: {
     const core = getFeishuRuntime();
     const pairing = createScopedPairingAccess({
       core,
-      channel: "feishu",
+      channel: "feishu-swarm",
       accountId: account.accountId,
     });
     const shouldComputeCommandAuthorized = core.channel.commands.shouldComputeCommandAuthorized(
@@ -712,7 +712,7 @@ export async function handleFeishuMessage(params: {
               cfg,
               to: `user:${ctx.senderOpenId}`,
               text: core.channel.pairing.buildPairingReply({
-                channel: "feishu",
+                channel: "feishu-swarm",
                 idLine: `Your Feishu user id: ${ctx.senderOpenId}`,
                 code,
               }),
@@ -772,7 +772,7 @@ export async function handleFeishuMessage(params: {
 
     let route = core.channel.routing.resolveAgentRoute({
       cfg,
-      channel: "feishu",
+      channel: "feishu-swarm",
       accountId: account.accountId,
       peer: {
         kind: isGroup ? "group" : "direct",
@@ -807,7 +807,7 @@ export async function handleFeishuMessage(params: {
           // Re-resolve route with updated config
           route = core.channel.routing.resolveAgentRoute({
             cfg: result.updatedCfg,
-            channel: "feishu",
+            channel: "feishu-swarm",
             accountId: account.accountId,
             peer: { kind: "direct", id: ctx.senderOpenId },
           });
@@ -925,14 +925,14 @@ export async function handleFeishuMessage(params: {
       GroupSubject: isGroup ? ctx.chatId : undefined,
       SenderName: ctx.senderName ?? ctx.senderOpenId,
       SenderId: ctx.senderOpenId,
-      Provider: "feishu" as const,
-      Surface: "feishu" as const,
+      Provider: "feishu-swarm" as const,
+      Surface: "feishu-swarm" as const,
       MessageSid: ctx.messageId,
       ReplyToBody: quotedContent ?? undefined,
       Timestamp: Date.now(),
       WasMentioned: ctx.mentionedBot,
       CommandAuthorized: commandAuthorized,
-      OriginatingChannel: "feishu" as const,
+      OriginatingChannel: "feishu-swarm" as const,
       OriginatingTo: feishuTo,
       ...mediaPayload,
     });

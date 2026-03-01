@@ -192,7 +192,7 @@ export const FeishuConfigSchema = z
         code: z.ZodIssueCode.custom,
         path: ["verificationToken"],
         message:
-          'channels.feishu.connectionMode="webhook" requires channels.feishu.verificationToken',
+          'channels.feishu-swarm.connectionMode="webhook" requires channels.feishu-swarm.verificationToken',
       });
     }
 
@@ -211,7 +211,7 @@ export const FeishuConfigSchema = z
           code: z.ZodIssueCode.custom,
           path: ["accounts", accountId, "verificationToken"],
           message:
-            `channels.feishu.accounts.${accountId}.connectionMode="webhook" requires ` +
+            `channels.feishu-swarm.accounts.${accountId}.connectionMode="webhook" requires ` +
             "a verificationToken (account-level or top-level)",
         });
       }
@@ -225,7 +225,7 @@ export const FeishuConfigSchema = z
           code: z.ZodIssueCode.custom,
           path: ["allowFrom"],
           message:
-            'channels.feishu.dmPolicy="open" requires channels.feishu.allowFrom to include "*"',
+            'channels.feishu-swarm.dmPolicy="open" requires channels.feishu-swarm.allowFrom to include "*"',
         });
       }
     }

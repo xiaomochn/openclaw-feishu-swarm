@@ -132,7 +132,7 @@ export async function sendMessageFeishu(
   const { client, receiveId, receiveIdType } = resolveFeishuSendTarget({ cfg, to, accountId });
   const tableMode = getFeishuRuntime().channel.text.resolveMarkdownTableMode({
     cfg,
-    channel: "feishu",
+    channel: "feishu-swarm",
   });
 
   // Build message content (with @mention support)
@@ -338,7 +338,7 @@ export async function editMessageFeishu(params: {
   const client = createFeishuClient(account);
   const tableMode = getFeishuRuntime().channel.text.resolveMarkdownTableMode({
     cfg,
-    channel: "feishu",
+    channel: "feishu-swarm",
   });
   const messageText = getFeishuRuntime().channel.text.convertMarkdownTables(text ?? "", tableMode);
 

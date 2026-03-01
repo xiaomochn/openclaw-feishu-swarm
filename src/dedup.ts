@@ -22,7 +22,7 @@ function resolveStateDirFromEnv(env: NodeJS.ProcessEnv = process.env): string {
 
 function resolveNamespaceFilePath(namespace: string): string {
   const safe = namespace.replace(/[^a-zA-Z0-9_-]/g, "_");
-  return path.join(resolveStateDirFromEnv(), "feishu", "dedup", `${safe}.json`);
+  return path.join(resolveStateDirFromEnv(), "feishu-swarm", "dedup", `${safe}.json`);
 }
 
 const persistentDedupe = createPersistentDedupe({

@@ -28,18 +28,19 @@ import { normalizeFeishuTarget, looksLikeFeishuId, formatFeishuTarget } from "./
 import type { ResolvedFeishuAccount, FeishuConfig } from "./types.js";
 
 const meta: ChannelMeta = {
-  id: "feishu",
-  label: "Feishu",
-  selectionLabel: "Feishu/Lark (飞书)",
+  id: "feishu-swarm",
+  label: "Feishu Swarm",
+  selectionLabel: "Feishu Swarm (飞书多 Bot 增强版)",
   docsPath: "/channels/feishu",
-  docsLabel: "feishu",
-  blurb: "飞书/Lark enterprise messaging.",
-  aliases: ["lark"],
+  docsLabel: "feishu-swarm",
+  blurb: "飞书/Lark 增强版通道，内置 Bot Registry 多 Bot 支持 + API 调用缓存优化。",
+  aliases: ["lark", "feishu"],
+  preferOver: ["feishu"],
   order: 70,
 };
 
 export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
-  id: "feishu",
+  id: "feishu-swarm",
   meta: {
     ...meta,
   },
@@ -72,7 +73,7 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
   groups: {
     resolveToolPolicy: resolveFeishuGroupToolPolicy,
   },
-  reload: { configPrefixes: ["channels.feishu"] },
+  reload: { configPrefixes: ["channels.feishu-swarm"] },
   configSchema: {
     schema: {
       type: "object",
@@ -144,8 +145,8 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
           ...cfg,
           channels: {
             ...cfg.channels,
-            feishu: {
-              ...cfg.channels?.feishu,
+            "feishu-swarm": {
+              ...cfg.channels?.["feishu-swarm"],
               enabled,
             },
           },
@@ -153,12 +154,12 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
       }
 
       // For named accounts, set enabled in accounts[accountId]
-      const feishuCfg = cfg.channels?.feishu as FeishuConfig | undefined;
+      const feishuCfg = cfg.channels?.["feishu-swarm"] as FeishuConfig | undefined;
       return {
         ...cfg,
         channels: {
           ...cfg.channels,
-          feishu: {
+          "feishu-swarm": {
             ...feishuCfg,
             accounts: {
               ...feishuCfg?.accounts,
@@ -178,7 +179,7 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
         // Delete entire feishu config
         const next = { ...cfg } as ClawdbotConfig;
         const nextChannels = { ...cfg.channels };
-        delete (nextChannels as Record<string, unknown>).feishu;
+        delete (nextChannels as Record<string, unknown>)["feishu-swarm"];
         if (Object.keys(nextChannels).length > 0) {
           next.channels = nextChannels;
         } else {
@@ -188,7 +189,7 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
       }
 
       // Delete specific account from accounts
-      const feishuCfg = cfg.channels?.feishu as FeishuConfig | undefined;
+      const feishuCfg = cfg.channels?.["feishu-swarm"] as FeishuConfig | undefined;
       const accounts = { ...feishuCfg?.accounts };
       delete accounts[accountId];
 
@@ -196,7 +197,7 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
         ...cfg,
         channels: {
           ...cfg.channels,
-          feishu: {
+          "feishu-swarm": {
             ...feishuCfg,
             accounts: Object.keys(accounts).length > 0 ? accounts : undefined,
           },
@@ -228,13 +229,13 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
       const feishuCfg = account.config;
       const defaultGroupPolicy = resolveDefaultGroupPolicy(cfg);
       const { groupPolicy } = resolveAllowlistProviderRuntimeGroupPolicy({
-        providerConfigPresent: cfg.channels?.feishu !== undefined,
+        providerConfigPresent: cfg.channels?.["feishu-swarm"] !== undefined,
         groupPolicy: feishuCfg?.groupPolicy,
         defaultGroupPolicy,
       });
       if (groupPolicy !== "open") return [];
       return [
-        `- Feishu[${account.accountId}] groups: groupPolicy="open" allows any member to trigger (mention-gated). Set channels.feishu.groupPolicy="allowlist" + channels.feishu.groupAllowFrom to restrict senders.`,
+        `- Feishu[${account.accountId}] groups: groupPolicy="open" allows any member to trigger (mention-gated). Set channels.feishu-swarm.groupPolicy="allowlist" + channels.feishu-swarm.groupAllowFrom to restrict senders.`,
       ];
     },
   },
@@ -248,20 +249,20 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
           ...cfg,
           channels: {
             ...cfg.channels,
-            feishu: {
-              ...cfg.channels?.feishu,
+            "feishu-swarm": {
+              ...cfg.channels?.["feishu-swarm"],
               enabled: true,
             },
           },
         };
       }
 
-      const feishuCfg = cfg.channels?.feishu as FeishuConfig | undefined;
+      const feishuCfg = cfg.channels?.["feishu-swarm"] as FeishuConfig | undefined;
       return {
         ...cfg,
         channels: {
           ...cfg.channels,
-          feishu: {
+          "feishu-swarm": {
             ...feishuCfg,
             accounts: {
               ...feishuCfg?.accounts,

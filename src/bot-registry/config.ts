@@ -117,7 +117,7 @@ export function getRegistryConfig(cfg: ClawdbotConfig): {
   enabled: boolean;
   inboundBaseUrl: string;
 } | null {
-  const feishu = cfg.channels?.feishu as (FeishuConfigWithRegistry & { accounts?: Record<string, FeishuConfigWithRegistry> }) | undefined;
+  const feishu = cfg.channels?.["feishu-swarm"] as (FeishuConfigWithRegistry & { accounts?: Record<string, FeishuConfigWithRegistry> }) | undefined;
   if (!feishu) return null;
 
   // Check top-level first, then fall back to any account-level config

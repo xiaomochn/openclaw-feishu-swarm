@@ -77,7 +77,7 @@ function writePeersFile(workspace: string | undefined, selfName: string | undefi
 }
 
 
-const INBOUND_PATH = "/channels/feishu/bot-registry/inbound";
+const INBOUND_PATH = "/channels/feishu-swarm/bot-registry/inbound";
 
 /** Guard: inbound proxy only needs to start once */
 let _proxyStarted = false;
@@ -106,7 +106,7 @@ export function init(options: InitOptions): void {
   if (!_proxyStarted) {
     _proxyStarted = true;
 
-    const feishu = (cfg as { channels?: { feishu?: { botRegistryInboundBaseUrl?: string } } })?.channels?.feishu;
+    const feishu = (cfg as { channels?: { "feishu-swarm"?: { botRegistryInboundBaseUrl?: string } } })?.channels?.["feishu-swarm"];
     const explicitInbound = feishu?.botRegistryInboundBaseUrl?.trim();
 
     if (!explicitInbound) {

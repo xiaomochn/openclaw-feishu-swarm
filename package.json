@@ -27,17 +27,21 @@
       "./index.ts"
     ],
     "channel": {
-      "id": "feishu",
-      "label": "Feishu",
-      "selectionLabel": "Feishu/Lark (飞书)",
+      "id": "feishu-swarm",
+      "label": "Feishu Swarm",
+      "selectionLabel": "Feishu Swarm (飞书多 Bot 增强版)",
       "docsPath": "/channels/feishu",
       "docsLabel": "feishu",
-      "blurb": "飞书/Lark enterprise messaging with Bot Registry for multi-bot conversations.",
+      "blurb": "飞书/Lark 增强版通道，内置 Bot Registry 多 Bot 支持 + API 调用缓存优化。",
       "aliases": [
-        "lark"
+        "lark",
+        "feishu"
       ],
       "order": 35,
-      "quickstartAllowFrom": true
+      "quickstartAllowFrom": true,
+      "preferOver": [
+        "feishu"
+      ]
     },
     "install": {
       "npmSpec": "@openclaw/feishu",

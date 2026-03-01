@@ -17,7 +17,7 @@ export type RegisterResult = { ok: true } | { ok: false; error: string };
  * In multi-account mode, picks the first enabled account.
  */
 function resolveFeishuConfigForRegistry(cfg: ClawdbotConfig): FeishuConfig | undefined {
-  const raw = cfg.channels?.feishu as FeishuConfig | undefined;
+  const raw = cfg.channels?.["feishu-swarm"] as FeishuConfig | undefined;
   if (!raw) return undefined;
 
   // Single-account mode: appId directly on feishu config
@@ -85,7 +85,7 @@ export async function buildAllRegistrationPayloads(params: {
 }): Promise<RegistryRegistrationPayload[]> {
   const { cfg } = params;
   const reg = getRegistryConfig(cfg);
-  const raw = cfg.channels?.feishu as FeishuConfig | undefined;
+  const raw = cfg.channels?.["feishu-swarm"] as FeishuConfig | undefined;
   if (!raw) return [];
 
   // Single-account mode
@@ -144,7 +144,7 @@ export async function registerWithRegistry(params: {
   const { cfg, log } = params;
   const reg = getRegistryConfig(cfg);
   if (!reg?.enabled) {
-    const msg = "Registry not configured or disabled (need channels.feishu.botRegistryUrl and enabled)";
+    const msg = "Registry not configured or disabled (need channels.feishu-swarm.botRegistryUrl and enabled)";
     console.log("[feishu bot-registry] 注册跳过：", msg);
     return { ok: false, error: msg };
   }

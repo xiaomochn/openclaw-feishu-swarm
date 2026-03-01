@@ -56,24 +56,24 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
     onStartError: (err) =>
       logTypingFailure({
         log: (message) => params.runtime.log?.(message),
-        channel: "feishu",
+        channel: "feishu-swarm",
         action: "start",
         error: err,
       }),
     onStopError: (err) =>
       logTypingFailure({
         log: (message) => params.runtime.log?.(message),
-        channel: "feishu",
+        channel: "feishu-swarm",
         action: "stop",
         error: err,
       }),
   });
 
-  const textChunkLimit = core.channel.text.resolveTextChunkLimit(cfg, "feishu", accountId, {
+  const textChunkLimit = core.channel.text.resolveTextChunkLimit(cfg, "feishu-swarm", accountId, {
     fallbackLimit: 4000,
   });
-  const chunkMode = core.channel.text.resolveChunkMode(cfg, "feishu");
-  const tableMode = core.channel.text.resolveMarkdownTableMode({ cfg, channel: "feishu" });
+  const chunkMode = core.channel.text.resolveChunkMode(cfg, "feishu-swarm");
+  const tableMode = core.channel.text.resolveMarkdownTableMode({ cfg, channel: "feishu-swarm" });
   const renderMode = account.config?.renderMode ?? "auto";
   const streamingEnabled = account.config?.streaming !== false && renderMode !== "raw";
 

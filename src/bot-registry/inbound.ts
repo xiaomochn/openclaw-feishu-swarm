@@ -54,7 +54,7 @@ async function dispatchInbound(
   } else {
     route = core.channel.routing.resolveAgentRoute({
       cfg,
-      channel: "feishu",
+      channel: "feishu-swarm",
       peer: { kind: "group", id: chatId },
     });
     console.log("[feishu bot-registry] 入站路由(自动) sessionKey=" + route.sessionKey, "agentId=" + route.agentId);
@@ -99,13 +99,13 @@ async function dispatchInbound(
     GroupSubject: chatId,
     SenderName: body.sender_bot_name ?? senderBotId,
     SenderId: senderBotId,
-    Provider: "feishu" as const,
-    Surface: "feishu" as const,
+    Provider: "feishu-swarm" as const,
+    Surface: "feishu-swarm" as const,
     MessageSid: messageId,
     Timestamp: Date.now(),
     WasMentioned: wasMentioned,
     CommandAuthorized: true,
-    OriginatingChannel: "feishu" as const,
+    OriginatingChannel: "feishu-swarm" as const,
     OriginatingTo: feishuTo,
   });
 

@@ -46,9 +46,9 @@ export {
 export { feishuPlugin } from "./src/channel.js";
 
 const plugin = {
-  id: "feishu",
-  name: "Feishu",
-  description: "Feishu/Lark channel plugin",
+  id: "feishu-swarm",
+  name: "Feishu Swarm",
+  description: "Feishu/Lark 增强版通道 - 多 Bot 支持 + API 缓存优化",
   configSchema: emptyPluginConfigSchema(),
   register(api: OpenClawPluginApi) {
     setFeishuRuntime(api.runtime);
