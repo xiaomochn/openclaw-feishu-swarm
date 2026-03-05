@@ -28,19 +28,34 @@ import { normalizeFeishuTarget, looksLikeFeishuId, formatFeishuTarget } from "./
 import type { ResolvedFeishuAccount, FeishuConfig } from "./types.js";
 
 const meta: ChannelMeta = {
-  id: "feishu-swarm",
-  label: "Feishu Swarm",
-  selectionLabel: "Feishu Swarm (飞书多 Bot 增强版)",
+  id: "feishu",
+  label: "Feishu",
+  selectionLabel: "Feishu/Lark (飞书)",
   docsPath: "/channels/feishu",
-  docsLabel: "feishu-swarm",
-  blurb: "飞书/Lark 增强版通道，内置 Bot Registry 多 Bot 支持 + API 调用缓存优化。",
-  aliases: ["lark", "feishu"],
-  preferOver: ["feishu"],
+  docsLabel: "feishu",
+  blurb: "飞书/Lark enterprise messaging.",
+  aliases: ["lark"],
   order: 70,
 };
 
+const secretInputJsonSchema = {
+  oneOf: [
+    { type: "string" },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["source", "provider", "id"],
+      properties: {
+        source: { type: "string", enum: ["env", "file", "exec"] },
+        provider: { type: "string", minLength: 1 },
+        id: { type: "string", minLength: 1 },
+      },
+    },
+  ],
+} as const;
+
 export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
-  id: "feishu-swarm",
+  id: "feishu",
   meta: {
     ...meta,
   },
@@ -73,17 +88,18 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
   groups: {
     resolveToolPolicy: resolveFeishuGroupToolPolicy,
   },
-  reload: { configPrefixes: ["channels.feishu-swarm"] },
+  reload: { configPrefixes: ["channels.feishu"] },
   configSchema: {
     schema: {
       type: "object",
       additionalProperties: false,
       properties: {
         enabled: { type: "boolean" },
+        defaultAccount: { type: "string" },
         appId: { type: "string" },
-        appSecret: { type: "string" },
+        appSecret: secretInputJsonSchema,
         encryptKey: { type: "string" },
-        verificationToken: { type: "string" },
+        verificationToken: secretInputJsonSchema,
         domain: {
           oneOf: [
             { type: "string", enum: ["feishu", "lark"] },
@@ -102,7 +118,12 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
           items: { oneOf: [{ type: "string" }, { type: "number" }] },
         },
         requireMention: { type: "boolean" },
+        groupSessionScope: {
+          type: "string",
+          enum: ["group", "group_sender", "group_topic", "group_topic_sender"],
+        },
         topicSessionMode: { type: "string", enum: ["disabled", "enabled"] },
+        replyInThread: { type: "string", enum: ["disabled", "enabled"] },
         historyLimit: { type: "integer", minimum: 0 },
         dmHistoryLimit: { type: "integer", minimum: 0 },
         textChunkLimit: { type: "integer", minimum: 1 },
@@ -117,9 +138,9 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
               enabled: { type: "boolean" },
               name: { type: "string" },
               appId: { type: "string" },
-              appSecret: { type: "string" },
+              appSecret: secretInputJsonSchema,
               encryptKey: { type: "string" },
-              verificationToken: { type: "string" },
+              verificationToken: secretInputJsonSchema,
               domain: { type: "string", enum: ["feishu", "lark"] },
               connectionMode: { type: "string", enum: ["websocket", "webhook"] },
               webhookHost: { type: "string" },
@@ -145,8 +166,8 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
           ...cfg,
           channels: {
             ...cfg.channels,
-            "feishu-swarm": {
-              ...cfg.channels?.["feishu-swarm"],
+            feishu: {
+              ...cfg.channels?.feishu,
               enabled,
             },
           },
@@ -154,12 +175,12 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
       }
 
       // For named accounts, set enabled in accounts[accountId]
-      const feishuCfg = cfg.channels?.["feishu-swarm"] as FeishuConfig | undefined;
+      const feishuCfg = cfg.channels?.feishu as FeishuConfig | undefined;
       return {
         ...cfg,
         channels: {
           ...cfg.channels,
-          "feishu-swarm": {
+          feishu: {
             ...feishuCfg,
             accounts: {
               ...feishuCfg?.accounts,
@@ -179,7 +200,7 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
         // Delete entire feishu config
         const next = { ...cfg } as ClawdbotConfig;
         const nextChannels = { ...cfg.channels };
-        delete (nextChannels as Record<string, unknown>)["feishu-swarm"];
+        delete (nextChannels as Record<string, unknown>).feishu;
         if (Object.keys(nextChannels).length > 0) {
           next.channels = nextChannels;
         } else {
@@ -189,7 +210,7 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
       }
 
       // Delete specific account from accounts
-      const feishuCfg = cfg.channels?.["feishu-swarm"] as FeishuConfig | undefined;
+      const feishuCfg = cfg.channels?.feishu as FeishuConfig | undefined;
       const accounts = { ...feishuCfg?.accounts };
       delete accounts[accountId];
 
@@ -197,7 +218,7 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
         ...cfg,
         channels: {
           ...cfg.channels,
-          "feishu-swarm": {
+          feishu: {
             ...feishuCfg,
             accounts: Object.keys(accounts).length > 0 ? accounts : undefined,
           },
@@ -229,13 +250,13 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
       const feishuCfg = account.config;
       const defaultGroupPolicy = resolveDefaultGroupPolicy(cfg);
       const { groupPolicy } = resolveAllowlistProviderRuntimeGroupPolicy({
-        providerConfigPresent: cfg.channels?.["feishu-swarm"] !== undefined,
+        providerConfigPresent: cfg.channels?.feishu !== undefined,
         groupPolicy: feishuCfg?.groupPolicy,
         defaultGroupPolicy,
       });
       if (groupPolicy !== "open") return [];
       return [
-        `- Feishu[${account.accountId}] groups: groupPolicy="open" allows any member to trigger (mention-gated). Set channels.feishu-swarm.groupPolicy="allowlist" + channels.feishu-swarm.groupAllowFrom to restrict senders.`,
+        `- Feishu[${account.accountId}] groups: groupPolicy="open" allows any member to trigger (mention-gated). Set channels.feishu.groupPolicy="allowlist" + channels.feishu.groupAllowFrom to restrict senders.`,
       ];
     },
   },
@@ -249,20 +270,20 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
           ...cfg,
           channels: {
             ...cfg.channels,
-            "feishu-swarm": {
-              ...cfg.channels?.["feishu-swarm"],
+            feishu: {
+              ...cfg.channels?.feishu,
               enabled: true,
             },
           },
         };
       }
 
-      const feishuCfg = cfg.channels?.["feishu-swarm"] as FeishuConfig | undefined;
+      const feishuCfg = cfg.channels?.feishu as FeishuConfig | undefined;
       return {
         ...cfg,
         channels: {
           ...cfg.channels,
-          "feishu-swarm": {
+          feishu: {
             ...feishuCfg,
             accounts: {
               ...feishuCfg?.accounts,
