@@ -1,5 +1,5 @@
 {
-  "name": "openclaw-feishu-swarm",
+  "name": "feishu-swarm",
   "version": "2026.2.28",
   "description": "OpenClaw Feishu plugin with Bot Registry — multi-bot group chat via WebSocket relay",
   "type": "module",
