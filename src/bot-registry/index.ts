@@ -130,8 +130,9 @@ export function init(options: InitOptions): void {
     }
 
     if (typeof (api as { registerHttpRoute?: (params: unknown) => void }).registerHttpRoute === "function") {
-      (api as { registerHttpRoute: (params: { path: string; handler: (req: unknown, res: unknown) => Promise<void> }) => void }).registerHttpRoute({
+      (api as { registerHttpRoute: (params: { path: string; auth: string; handler: (req: unknown, res: unknown) => Promise<void> }) => void }).registerHttpRoute({
         path: INBOUND_PATH,
+        auth: "plugin", // Registry callback — plugin handles its own auth
         handler: (req: unknown, res: unknown) =>
           handleInbound(req as import("node:http").IncomingMessage, res as import("node:http").ServerResponse, getCfg),
       });
