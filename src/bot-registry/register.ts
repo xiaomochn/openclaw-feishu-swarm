@@ -5,9 +5,9 @@ import type { RegistryRegistrationPayload } from "./types.js";
 import { setCachedBotIdentity } from "./notify.js";
 import { probeFeishu } from "../probe.js";
 import { listFeishuDirectoryGroupsLive } from "../directory.js";
-import { listEnabledFeishuAccounts } from "../accounts.js";
+import { listEnabledFeishuAccounts, CHANNEL_KEY } from "../accounts.js";
 
-const INBOUND_PATH = "/channels/feishu/bot-registry/inbound";
+const INBOUND_PATH = `/channels/${CHANNEL_KEY}/bot-registry/inbound`;
 
 export type RegisterResult = { ok: true } | { ok: false; error: string };
 

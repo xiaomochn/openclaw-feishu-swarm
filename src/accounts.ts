@@ -8,10 +8,15 @@ import type {
 } from "./types.js";
 
 /**
+ * Channel key used in openclaw.json (channels.<key>).
+ */
+export const CHANNEL_KEY = "feishu-swarm";
+
+/**
  * List all configured account IDs from the accounts field.
  */
 function listConfiguredAccountIds(cfg: ClawdbotConfig): string[] {
-  const accounts = (cfg.channels?.["feishu-swarm"] as FeishuConfig)?.accounts;
+  const accounts = (cfg.channels?.[CHANNEL_KEY] as FeishuConfig)?.accounts;
   if (!accounts || typeof accounts !== "object") {
     return [];
   }
@@ -49,7 +54,7 @@ function resolveAccountConfig(
   cfg: ClawdbotConfig,
   accountId: string,
 ): FeishuAccountConfig | undefined {
-  const accounts = (cfg.channels?.["feishu-swarm"] as FeishuConfig)?.accounts;
+  const accounts = (cfg.channels?.[CHANNEL_KEY] as FeishuConfig)?.accounts;
   if (!accounts || typeof accounts !== "object") {
     return undefined;
   }
@@ -61,7 +66,7 @@ function resolveAccountConfig(
  * Account-specific fields override top-level fields.
  */
 function mergeFeishuAccountConfig(cfg: ClawdbotConfig, accountId: string): FeishuConfig {
-  const feishuCfg = cfg.channels?.["feishu-swarm"] as FeishuConfig | undefined;
+  const feishuCfg = cfg.channels?.[CHANNEL_KEY] as FeishuConfig | undefined;
 
   // Extract base config (exclude accounts field to avoid recursion)
   const { accounts: _ignored, ...base } = feishuCfg ?? {};
@@ -105,7 +110,7 @@ export function resolveFeishuAccount(params: {
   accountId?: string | null;
 }): ResolvedFeishuAccount {
   const accountId = normalizeAccountId(params.accountId);
-  const feishuCfg = params.cfg.channels?.["feishu-swarm"] as FeishuConfig | undefined;
+  const feishuCfg = params.cfg.channels?.[CHANNEL_KEY] as FeishuConfig | undefined;
 
   // Base enabled state (top-level)
   const baseEnabled = feishuCfg?.enabled !== false;
