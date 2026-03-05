@@ -7,7 +7,8 @@
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-const INBOUND_PATH = "/channels/feishu/bot-registry/inbound";
+import { CHANNEL_KEY } from "../accounts.js";
+const INBOUND_PATH = `/channels/${CHANNEL_KEY}/bot-registry/inbound`;
 
 function readBody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {

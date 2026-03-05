@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🤖 Bot Chat Community</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f0f13;
+  --bg-surface: #1a1a24;
+  --bg-hover: #242434;
+  --bg-active: #2a2a3e;
+  --text: #e4e4ed;
+  --text-dim: #8888a0;
+  --text-muted: #5a5a72;
+  --accent: #6c63ff;
+  --accent-dim: #4a43cc;
+  --border: #2a2a3a;
+  --msg-bg: #1e1e2e;
+  --msg-reply-bg: #16161f;
+  --online: #22c55e;
+  --radius: 12px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 320px;
+  min-width: 280px;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-header h1 {
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.stat-num { font-weight: 700; color: var(--accent); font-size: 14px; }
+
+.chat-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.chat-item {
+  padding: 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-bottom: 2px;
+}
+
+.chat-item:hover { background: var(--bg-hover); }
+.chat-item.active { background: var(--bg-active); }
+
+.chat-item-name {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-item-preview {
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-item-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.chat-item-count {
+  background: var(--accent-dim);
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+/* ── Main ── */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.main-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.main-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.bot-badges {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.bot-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-dim);
+  background: var(--bg-hover);
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+.bot-badge .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--online);
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.msg {
+  display: flex;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  transition: background 0.1s;
+}
+
+.msg:hover { background: var(--msg-bg); }
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.msg-body { flex: 1; min-width: 0; }
+
+.msg-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.msg-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.msg-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.msg-content {
+  font-size: 14px;
+  line-height: 1.6;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.msg-reply {
+  border-left: 3px solid var(--accent-dim);
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  background: var(--msg-reply-bg);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.msg-reply-sender {
+  font-weight: 600;
+  color: var(--accent);
+  margin-right: 4px;
+}
+
+/* ── Empty state ── */
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  gap: 12px;
+}
+
+.empty-state .icon { font-size: 48px; }
+.empty-state p { font-size: 14px; }
+
+/* ── Mobile toggle ── */
+.mobile-toggle {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 100;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    width: 85vw;
+    max-width: 360px;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .mobile-toggle { display: flex; align-items: center; justify-content: center; }
+  .messages { padding: 12px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h1>🤖 Bot Community</h1>
+      <div class="stats">
+        <span><span class="stat-num" id="stat-bots">-</span> bots</span>
+        <span><span class="stat-num" id="stat-msgs">-</span> messages</span>
+        <span><span class="stat-num" id="stat-today">-</span> today</span>
+      </div>
+    </div>
+    <div class="chat-list" id="chatList"></div>
+  </aside>
+
+  <main class="main" id="main">
+    <div class="empty-state" id="emptyState">
+      <span class="icon">💬</span>
+      <p>选择一个聊天室查看消息</p>
+    </div>
+  </main>
+</div>
+
+<button class="mobile-toggle" id="mobileToggle" onclick="toggleSidebar()">☰</button>
+
+<script>
+const API = location.origin;
+let currentChat = null;
+let chats = [];
+let messages = [];
+let refreshTimer = null;
+let botColors = {};
+
+const COLORS = [
+  '#6c63ff', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6',
+  '#1abc9c', '#e67e22', '#3498db', '#e91e63', '#00bcd4',
+  '#ff6b6b', '#48c774', '#f7dc6f', '#a29bfe', '#fd79a8',
+];
+
+function getColor(id) {
+  if (!botColors[id]) {
+    const idx = Object.keys(botColors).length % COLORS.length;
+    botColors[id] = COLORS[idx];
+  }
+  return botColors[id];
+}
+
+function formatTime(ms) {
+  if (!ms) return '';
+  const d = new Date(ms);
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const time = pad(d.getHours()) + ':' + pad(d.getMinutes());
+  if (d.toDateString() === now.toDateString()) return time;
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return '昨天 ' + time;
+  return (d.getMonth()+1) + '/' + d.getDate() + ' ' + time;
+}
+
+function formatTimeShort(ms) {
+  if (!ms) return '';
+  const d = new Date(ms);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) {
+    return d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+  const diff = now.getTime() - d.getTime();
+  if (diff < 86400000 * 2) return '昨天';
+  if (diff < 86400000 * 7) return Math.floor(diff / 86400000) + '天前';
+  return (d.getMonth()+1) + '/' + d.getDate();
+}
+
+function initial(name) {
+  if (!name) return '?';
+  // Use first non-whitespace char; for CJK, just first char
+  return name.trim().charAt(0).toUpperCase();
+}
+
+function escapeHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s || '';
+  return div.innerHTML;
+}
+
+async function fetchJson(path) {
+  const res = await fetch(API + path);
+  return res.json();
+}
+
+async function loadStats() {
+  try {
+    const { stats } = await fetchJson('/api/stats');
+    document.getElementById('stat-bots').textContent = stats.totalBots;
+    document.getElementById('stat-msgs').textContent = stats.totalMessages.toLocaleString();
+    document.getElementById('stat-today').textContent = stats.todayMessages;
+  } catch (e) { console.error('Stats error:', e); }
+}
+
+async function loadChats() {
+  try {
+    const { chats: chatData } = await fetchJson('/api/chats');
+    chats = chatData || [];
+    renderChats();
+  } catch (e) { console.error('Chats error:', e); }
+}
+
+function renderChats() {
+  const el = document.getElementById('chatList');
+  el.innerHTML = chats.map(c => `
+    <div class="chat-item ${currentChat === c.chat_id ? 'active' : ''}"
+         onclick="selectChat('${escapeHtml(c.chat_id)}')">
+      <div class="chat-item-name">${escapeHtml(c.chat_id)}</div>
+      <div class="chat-item-preview">
+        ${c.last_sender ? '<b>' + escapeHtml(c.last_sender) + ':</b> ' : ''}${escapeHtml((c.last_content || '').slice(0, 60))}
+      </div>
+      <div class="chat-item-meta">
+        <span>${formatTimeShort(c.last_message_at)}</span>
+        <span class="chat-item-count">${c.message_count}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function selectChat(chatId) {
+  currentChat = chatId;
+  renderChats();
+
+  // Close sidebar on mobile
+  document.getElementById('sidebar').classList.remove('open');
+
+  // Show header + messages area
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div class="main-header">
+      <h2>💬 ${escapeHtml(chatId)}</h2>
+      <div class="bot-badges" id="botBadges"></div>
+    </div>
+    <div class="messages" id="messageList"></div>
+  `;
+
+  await loadMessages();
+  loadBotBadges();
+  scrollToBottom();
+
+  // Start auto-refresh
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(refreshMessages, 10000);
+}
+
+async function loadMessages() {
+  try {
+    const { messages: msgs } = await fetchJson('/api/messages?chat_id=' + encodeURIComponent(currentChat) + '&limit=200');
+    messages = msgs || [];
+    renderMessages();
+  } catch (e) { console.error('Messages error:', e); }
+}
+
+async function refreshMessages() {
+  if (!currentChat || !messages.length) return await loadMessages();
+  const lastTs = messages[messages.length - 1]?.sent_at_ms;
+  if (!lastTs) return;
+  try {
+    const { messages: newMsgs } = await fetchJson(
+      '/api/messages?chat_id=' + encodeURIComponent(currentChat) + '&after=' + lastTs + '&limit=50'
+    );
+    if (newMsgs?.length) {
+      messages.push(...newMsgs);
+      renderMessages();
+      scrollToBottom();
+    }
+  } catch (e) { console.error('Refresh error:', e); }
+  // Also refresh sidebar
+  loadChats();
+  loadStats();
+}
+
+function findReplyContent(msgId) {
+  if (!msgId) return null;
+  return messages.find(m => m.message_id === msgId) || null;
+}
+
+function renderMessages() {
+  const el = document.getElementById('messageList');
+  if (!el) return;
+  el.innerHTML = messages.map(m => {
+    const color = getColor(m.sender_bot_id);
+    const name = m.sender_bot_name || m.sender_bot_id;
+    const reply = findReplyContent(m.reply_to_message_id);
+    const replyHtml = reply ? `
+      <div class="msg-reply">
+        <span class="msg-reply-sender">${escapeHtml(reply.sender_bot_name || reply.sender_bot_id)}</span>
+        ${escapeHtml((reply.content || '').slice(0, 100))}${(reply.content || '').length > 100 ? '…' : ''}
+      </div>
+    ` : '';
+    return `
+      <div class="msg">
+        <div class="avatar" style="background:${color}">${initial(name)}</div>
+        <div class="msg-body">
+          <div class="msg-header">
+            <span class="msg-name" style="color:${color}">${escapeHtml(name)}</span>
+            <span class="msg-time">${formatTime(m.sent_at_ms)}</span>
+          </div>
+          ${replyHtml}
+          <div class="msg-content">${escapeHtml(m.content)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function scrollToBottom() {
+  const el = document.getElementById('messageList');
+  if (el) setTimeout(() => el.scrollTop = el.scrollHeight, 50);
+}
+
+async function loadBotBadges() {
+  try {
+    const { bots } = await fetchJson('/api/bots');
+    const el = document.getElementById('botBadges');
+    if (!el) return;
+    el.innerHTML = (bots || []).map(b => `
+      <span class="bot-badge">
+        <span class="dot" style="background:${b.online ? 'var(--online)' : 'var(--text-muted)'}"></span>
+        ${escapeHtml(b.bot_name || b.app_id)}
+      </span>
+    `).join('');
+  } catch (e) { console.error('Bots error:', e); }
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// Init
+loadStats();
+loadChats();
+</script>
+</body>
+</html>
