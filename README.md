@@ -1,6 +1,6 @@
 # openclaw-feishu-swarm
 
-> 让飞书群里的多个 AI 机器人互相对话 — 基于 [OpenClaw](https://github.com/openclaw/openclaw) 飞书插件扩展
+> 让飞书群里的多个 AI 机器人互相对话 — [OpenClaw](https://github.com/openclaw/openclaw) 飞书多 Bot 插件
 
 ## 这解决什么问题？
 
@@ -43,67 +43,143 @@ Swarm 通过一个中继 Registry 打破了这个限制，让同群的多个 AI 
 
 ### 前提
 
-- [OpenClaw](https://github.com/openclaw/openclaw) 已安装
+- [OpenClaw](https://github.com/openclaw/openclaw) 已安装（v2026.3.x+）
 - 至少两个飞书自建应用（各自有 App ID + App Secret）
 
 ### 安装
 
-插件 id 为 `feishu`，安装后会**自动替换**内置的飞书插件，不会同时存在两个。
+`feishu-swarm` 是**独立插件**，与官方 `@openclaw/feishu` 插件并存——它不替换官方插件，只添加 Bot Registry 多 Bot 协作功能。
 
 ```bash
-# 一键安装：克隆 → 装依赖 → 注册插件 → 重启网关
+# 克隆 → 装依赖 → 复制到扩展目录
 git clone https://github.com/xiaomochn/openclaw-feishu-swarm.git
 cd openclaw-feishu-swarm
 npm install
-openclaw plugins install .
-openclaw gateway restart
+
+# 复制到 OpenClaw 扩展目录
+cp -r . ~/.openclaw/extensions/feishu-swarm/
 ```
 
-> **想保持同步更新？** 用 `--link` 模式安装，之后 `git pull` 就能拿到最新代码：
-> ```bash
-> openclaw plugins install --link .
-> ```
+### 与官方 feishu 插件并存配置
 
-验证安装成功：
-```bash
-openclaw plugins list   # 应该看到 feishu 插件指向 swarm 的路径
-```
+这是推荐的部署方式。官方 `feishu` 插件处理常规飞书功能（收发消息、云文档工具等），`feishu-swarm` 只负责多 Bot 协作。
 
-卸载（恢复官方插件）：
-```bash
-openclaw plugins uninstall feishu
-openclaw gateway restart
-```
+**要点**：
+- 需要参与多 Bot 协作的 bot 放在 `channels.feishu-swarm` 中
+- 不需要多 Bot 协作的 bot 放在 `channels.feishu` 中
+- **同一个 bot 不要同时放在两个通道**，否则会收到重复消息
 
-### 配置
-
-在 `~/.openclaw/openclaw.json` 中：
-
-```json
+```jsonc
+// ~/.openclaw/openclaw.json
 {
   "channels": {
+    // 官方飞书插件 — 常规 bot（不参与多 Bot 协作）
     "feishu": {
-      "botRegistryEnabled": true,
       "accounts": {
         "main": {
           "enabled": true,
-          "appId": "cli_xxxxxxxxxxxxxxxx",
-          "appSecret": "your_app_secret",
-          "workspace": "~/.openclaw/workspace"
-        },
-        "bot2": {
-          "enabled": true,
-          "appId": "cli_yyyyyyyyyyyyyyyy",
-          "appSecret": "your_second_app_secret",
-          "workspace": "~/.openclaw/workspace-bot2"
+          "appId": "cli_aaaa",
+          "appSecret": "secret_aaaa"
         }
+      }
+    },
+
+    // feishu-swarm — 需要互相对话的 bot
+    "feishu-swarm": {
+      "botRegistryEnabled": true,
+      "accounts": {
+        "botA": {
+          "enabled": true,
+          "appId": "cli_bbbb",
+          "appSecret": "secret_bbbb",
+          "workspace": "~/.openclaw/workspace-botA"
+        },
+        "botB": {
+          "enabled": true,
+          "appId": "cli_cccc",
+          "appSecret": "secret_cccc",
+          "workspace": "~/.openclaw/workspace-botB"
+        }
+      }
+    }
+  },
+
+  // 插件注册
+  "plugins": {
+    "entries": {
+      "feishu-swarm": {
+        "path": "~/.openclaw/extensions/feishu-swarm"
+      }
+    }
+  },
+
+  // Agent 绑定（feishu-swarm 通道的 bot 需要单独绑定）
+  "agents": {
+    "bindings": [
+      {
+        "match": { "channel": "feishu-swarm", "accountId": "botA" },
+        "agentId": "feishu-botA"
+      },
+      {
+        "match": { "channel": "feishu-swarm", "accountId": "botB" },
+        "agentId": "feishu-botB"
+      }
+    ]
+  }
+}
+```
+
+### 纯 feishu-swarm 配置（不使用官方插件）
+
+如果所有 bot 都需要多 Bot 协作，可以只用 `feishu-swarm`。但注意 feishu-swarm **不注册云文档工具**（`feishu_doc`、`feishu_wiki` 等），如果需要这些工具，请保留官方 `feishu` 插件。
+
+```jsonc
+{
+  "channels": {
+    "feishu-swarm": {
+      "botRegistryEnabled": true,
+      "accounts": {
+        "botA": {
+          "enabled": true,
+          "appId": "cli_bbbb",
+          "appSecret": "secret_bbbb"
+        },
+        "botB": {
+          "enabled": true,
+          "appId": "cli_cccc",
+          "appSecret": "secret_cccc"
+        }
+      }
+    }
+  },
+  "plugins": {
+    "entries": {
+      "feishu-swarm": {
+        "path": "~/.openclaw/extensions/feishu-swarm"
       }
     }
   }
 }
 ```
 
-每个账号可以有独立的 `workspace`（独立人格、记忆），也可以共享。
+### 群组配置
+
+群消息默认需要 @mention 才触发。在 `feishu-swarm` 下配置允许的群：
+
+```jsonc
+{
+  "channels": {
+    "feishu-swarm": {
+      "groupAllowFrom": [
+        {
+          "chatId": "oc_xxxxx",
+          "requireMention": true  // 推荐：只在被 @ 时响应
+        }
+      ]
+    }
+  }
+}
+```
 
 ### 启动
 
@@ -111,7 +187,17 @@ openclaw gateway restart
 openclaw gateway restart
 ```
 
-启动后两个 bot 自动通过 WebSocket 注册到 Registry。在群里 @其中一个 bot 就能开始对话，bot 之间通过 @mention 互相交流。
+启动后 bot 自动通过 WebSocket 注册到 Registry。在群里 @其中一个 bot 就能开始对话，bot 之间通过 @mention 互相交流。
+
+### 验证
+
+启动日志中应该看到：
+
+```
+starting feishu-swarm[botA] (mode: websocket)     ← 飞书事件 WS 连接
+starting feishu-swarm[botB] (mode: websocket)
+[feishu bot-registry] WS 注册成功 peers=2          ← Registry WS 注册
+```
 
 ## 转发规则
 
@@ -159,11 +245,10 @@ npx tsx server.ts
 
 然后在配置中指定：
 
-```json
+```jsonc
 {
   "channels": {
-    "feishu": {
-      "botRegistryEnabled": true,
+    "feishu-swarm": {
       "botRegistryUrl": "https://your-registry.example.com"
     }
   }
@@ -198,30 +283,36 @@ npx tsx server.ts
 | `pong` | 心跳响应 |
 | `error` | 错误信息 |
 
-## 完整功能列表
+## 常见问题
 
-本插件包含官方 `@openclaw/feishu` 插件的**所有功能**，加上 Swarm 扩展：
+### Q: feishu-swarm 和官方 feishu 插件有什么区别？
 
-### 基础功能（继承自官方插件）
+官方 `@openclaw/feishu` 是完整的飞书插件，包含消息收发、云文档工具（Doc/Wiki/Drive/Bitable）、权限管理等全部功能。
 
-- 飞书消息收发（文本、富文本、卡片）
-- 流式卡片回复（打字效果）
-- 多账号支持
-- 群组/DM 策略配置
-- 消息去重、@提及处理、表情回复
-- 媒体收发（图片、文件）
-- 动态 Agent 分配
-- 飞书云文档工具（Doc / Wiki / Drive / Bitable / Perm）
+`feishu-swarm` 是在官方插件基础上增加了 **Bot Registry 多 Bot 协作**功能。作为独立通道运行，只注册 channel 和 bot-registry，不注册云文档工具（避免重复）。
 
-### Swarm 扩展
+### Q: 为什么不直接替换官方插件？
 
-- 多机器人互聊（同群 bot 之间消息互通）
-- WebSocket 长连接（NAT 友好）
-- 自动重连（指数退避 1s→30s）
-- 心跳保活（25s 间隔）
-- HTTP 降级（WS 不可用时自动切换）
-- 精准转发（只有被 @mention 或回复的 bot 才收到）
-- 名称匹配（跨应用 @mention 零配置解析）
+之前的确是替换方式（插件 id 也是 `"feishu"`），但每次 OpenClaw 更新都会覆盖掉自定义代码。独立通道方案更健壮：
+
+- OpenClaw 更新不影响 feishu-swarm
+- 云文档工具由官方插件提供，始终保持最新
+- feishu-swarm 只专注于多 Bot 协作
+
+### Q: 同一个 bot 能同时在 feishu 和 feishu-swarm 里吗？
+
+**不推荐**。同一个 appId 放在两个通道会建立两条飞书 WS 连接，导致消息重复接收。把需要多 Bot 协作的 bot 放在 `feishu-swarm`，其余放在 `feishu`。
+
+### Q: 启动时看到 "plugin tool name conflict" 警告？
+
+如果看到 `plugin tool name conflict (feishu-swarm): feishu_doc` 之类的警告，说明你用的是旧版 feishu-swarm，它还在注册云文档工具。更新到最新版即可（新版只注册 bot-registry）。
+
+### Q: 启动后 bot 没反应？
+
+检查日志是否有 `starting feishu-swarm[botX]`。如果没有，说明通道没有正确启动。常见原因：
+- 配置在 `channels.feishu` 而非 `channels.feishu-swarm`
+- 忘了在 `plugins.entries` 中注册插件
+- `agents.bindings` 中没有对应的绑定
 
 ## 配置参考
 
@@ -234,21 +325,25 @@ npx tsx server.ts
 ## 项目结构
 
 ```
-├── index.ts                    # 插件入口
+├── index.ts                    # 插件入口（注册 channel + bot-registry）
+├── openclaw.plugin.json        # 插件清单（id: "feishu-swarm"）
 ├── registry/                   # Registry 服务（可独立部署）
 │   └── server.ts
 ├── src/
+│   ├── accounts.ts             # CHANNEL_KEY 常量 + 账号解析
+│   ├── channel.ts              # 通道定义（id: "feishu-swarm"）
 │   ├── bot.ts                  # 消息处理核心
 │   ├── send.ts                 # 消息发送
 │   ├── bot-registry/           # Swarm 核心模块
-│   │   ├── index.ts            # WS 连接管理
+│   │   ├── index.ts            # 初始化 + WS 连接管理
 │   │   ├── ws-client.ts        # WebSocket 客户端
 │   │   ├── notify.ts           # 消息抄送
 │   │   ├── register.ts         # Bot 注册
 │   │   ├── inbound.ts          # 入站消息处理
+│   │   ├── inbound-proxy.ts    # 入站 HTTP 代理
 │   │   ├── config.ts           # 配置解析
 │   │   └── types.ts            # 类型定义
-│   └── ...                     # 其他飞书插件模块
+│   └── ...                     # 其他飞书插件模块（继承自官方）
 └── skills/                     # Agent 技能定义
 ```
 
