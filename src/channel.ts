@@ -26,13 +26,14 @@ import { probeFeishu } from "./probe.js";
 import { sendMessageFeishu } from "./send.js";
 import { normalizeFeishuTarget, looksLikeFeishuId, formatFeishuTarget } from "./targets.js";
 import type { ResolvedFeishuAccount, FeishuConfig } from "./types.js";
+import { CHANNEL_KEY } from "./accounts.js";
 
 const meta: ChannelMeta = {
-  id: "feishu",
-  label: "Feishu",
-  selectionLabel: "Feishu/Lark (飞书)",
+  id: CHANNEL_KEY,
+  label: "Feishu Swarm",
+  selectionLabel: "Feishu/Lark Swarm (飞书多Bot)",
   docsPath: "/channels/feishu",
-  docsLabel: "feishu",
+  docsLabel: "feishu-swarm",
   blurb: "飞书/Lark enterprise messaging.",
   aliases: ["lark"],
   order: 70,
@@ -55,7 +56,7 @@ const secretInputJsonSchema = {
 } as const;
 
 export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
-  id: "feishu",
+  id: CHANNEL_KEY,
   meta: {
     ...meta,
   },
@@ -88,7 +89,7 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
   groups: {
     resolveToolPolicy: resolveFeishuGroupToolPolicy,
   },
-  reload: { configPrefixes: ["channels.feishu"] },
+  reload: { configPrefixes: [`channels.${CHANNEL_KEY}`] },
   configSchema: {
     schema: {
       type: "object",
@@ -250,13 +251,13 @@ export const feishuPlugin: ChannelPlugin<ResolvedFeishuAccount> = {
       const feishuCfg = account.config;
       const defaultGroupPolicy = resolveDefaultGroupPolicy(cfg);
       const { groupPolicy } = resolveAllowlistProviderRuntimeGroupPolicy({
-        providerConfigPresent: cfg.channels?.feishu !== undefined,
+        providerConfigPresent: cfg.channels?.[CHANNEL_KEY] !== undefined,
         groupPolicy: feishuCfg?.groupPolicy,
         defaultGroupPolicy,
       });
       if (groupPolicy !== "open") return [];
       return [
-        `- Feishu[${account.accountId}] groups: groupPolicy="open" allows any member to trigger (mention-gated). Set channels.feishu.groupPolicy="allowlist" + channels.feishu.groupAllowFrom to restrict senders.`,
+        `- Feishu[${account.accountId}] groups: groupPolicy="open" allows any member to trigger (mention-gated). Set channels.${CHANNEL_KEY}.groupPolicy="allowlist" + channels.${CHANNEL_KEY}.groupAllowFrom to restrict senders.`,
       ];
     },
   },
