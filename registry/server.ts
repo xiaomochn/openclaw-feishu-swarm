@@ -10,12 +10,43 @@
  */
 
 import { createServer } from "node:http";
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { dirname } from "node:path";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync } from "node:fs";
+import { dirname, join, extname, resolve } from "node:path";
 import { WebSocketServer, type WebSocket as WsWebSocket } from "ws";
+import Database from "better-sqlite3";
 
 const PORT = Number(process.env.REGISTRY_PORT) || 3001;
 const DATA_FILE = process.env.REGISTRY_DATA_FILE?.trim() || ".registry/bots.json";
+const DB_FILE = process.env.REGISTRY_DB_FILE?.trim() || ".registry/messages.db";
+
+// ── SQLite setup ──────────────────────────────────────────────────────────
+const dbDir = dirname(DB_FILE);
+if (!existsSync(dbDir)) mkdirSync(dbDir, { recursive: true });
+const db = new Database(DB_FILE);
+db.pragma("journal_mode = WAL");
+db.exec(`
+  CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id TEXT NOT NULL,
+    message_id TEXT NOT NULL,
+    sender_bot_id TEXT NOT NULL,
+    sender_bot_name TEXT,
+    content TEXT,
+    mentions TEXT,
+    mention_names TEXT,
+    reply_to_message_id TEXT,
+    sent_at_ms INTEGER,
+    created_at INTEGER DEFAULT (unixepoch() * 1000)
+  );
+  CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);
+  CREATE INDEX IF NOT EXISTS idx_messages_sent_at ON messages(sent_at_ms);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_dedup ON messages(chat_id, message_id, sender_bot_id);
+`);
+const insertMsg = db.prepare(`
+  INSERT OR IGNORE INTO messages (chat_id, message_id, sender_bot_id, sender_bot_name, content, mentions, mention_names, reply_to_message_id, sent_at_ms)
+  VALUES (@chat_id, @message_id, @sender_bot_id, @sender_bot_name, @content, @mentions, @mention_names, @reply_to_message_id, @sent_at_ms)
+`);
+console.log("[registry] SQLite 已初始化:", DB_FILE);
 
 type BotRecord = {
   app_id: string;
@@ -289,6 +320,23 @@ async function processCopy(body: CopyPayload, source: string): Promise<{ ok: boo
   }
   seenCopyKeys.add(copyKey);
 
+  // ── Persist message to SQLite ──────────────────────────────────────────
+  try {
+    insertMsg.run({
+      chat_id: body.chat_id,
+      message_id: body.message_id,
+      sender_bot_id: body.sender_bot_id,
+      sender_bot_name: body.sender_bot_name ?? null,
+      content: body.content ?? "",
+      mentions: JSON.stringify(body.mentions ?? []),
+      mention_names: JSON.stringify(body.mention_names ?? []),
+      reply_to_message_id: body.reply_to_message_id ?? null,
+      sent_at_ms: body.sent_at_ms ?? Date.now(),
+    });
+  } catch (e) {
+    console.error("[registry] SQLite 写入失败:", e);
+  }
+
   const msgKey = `${body.chat_id}:${body.message_id}`;
   messageIdToSender.set(msgKey, body.sender_bot_id);
   if (messageIdToSender.size >= MAX_MESSAGE_ID_MAP) {
@@ -413,10 +461,116 @@ async function handleCopy(req: import("node:http").IncomingMessage, res: import(
   }
 }
 
+// ── Community API endpoints ───────────────────────────────────────────────
+
+const COMMUNITY_DIR = resolve(dirname(new URL(import.meta.url).pathname), "..", "community");
+
+const MIME_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".woff2": "font/woff2",
+  ".woff": "font/woff",
+};
+
+function serveStatic(res: import("node:http").ServerResponse, filePath: string): boolean {
+  const resolved = resolve(filePath);
+  if (!resolved.startsWith(COMMUNITY_DIR)) {
+    send(res, 403, { error: "Forbidden" });
+    return true;
+  }
+  if (!existsSync(resolved) || !statSync(resolved).isFile()) return false;
+  const ext = extname(resolved);
+  const mime = MIME_TYPES[ext] || "application/octet-stream";
+  res.writeHead(200, { "Content-Type": mime });
+  res.end(readFileSync(resolved));
+  return true;
+}
+
+function parseQuery(url: string): Record<string, string> {
+  const idx = url.indexOf("?");
+  if (idx === -1) return {};
+  const params: Record<string, string> = {};
+  for (const part of url.slice(idx + 1).split("&")) {
+    const [k, v] = part.split("=");
+    if (k) params[decodeURIComponent(k)] = decodeURIComponent(v ?? "");
+  }
+  return params;
+}
+
+function handleApiMessages(req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse): void {
+  const query = parseQuery(req.url ?? "");
+  const chatId = query.chat_id;
+  if (!chatId) { send(res, 400, { error: "chat_id required" }); return; }
+  const limit = Math.min(Number(query.limit) || 50, 200);
+  const before = query.before ? Number(query.before) : undefined;
+  const after = query.after ? Number(query.after) : undefined;
+
+  let rows;
+  if (after) {
+    rows = db.prepare(
+      `SELECT * FROM messages WHERE chat_id = ? AND sent_at_ms > ? ORDER BY sent_at_ms ASC LIMIT ?`
+    ).all(chatId, after, limit);
+  } else if (before) {
+    rows = db.prepare(
+      `SELECT * FROM messages WHERE chat_id = ? AND sent_at_ms < ? ORDER BY sent_at_ms DESC LIMIT ?`
+    ).all(chatId, before, limit);
+    (rows as unknown[]).reverse();
+  } else {
+    rows = db.prepare(
+      `SELECT * FROM messages WHERE chat_id = ? ORDER BY sent_at_ms DESC LIMIT ?`
+    ).all(chatId, limit);
+    (rows as unknown[]).reverse();
+  }
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  send(res, 200, { ok: true, messages: rows });
+}
+
+function handleApiChats(_req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse): void {
+  const rows = db.prepare(`
+    SELECT chat_id, COUNT(*) as message_count, MAX(sent_at_ms) as last_message_at,
+           (SELECT sender_bot_name FROM messages m2 WHERE m2.chat_id = m.chat_id ORDER BY sent_at_ms DESC LIMIT 1) as last_sender,
+           (SELECT content FROM messages m3 WHERE m3.chat_id = m.chat_id ORDER BY sent_at_ms DESC LIMIT 1) as last_content
+    FROM messages m GROUP BY chat_id ORDER BY last_message_at DESC
+  `).all();
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  send(res, 200, { ok: true, chats: rows });
+}
+
+function handleApiBots(_req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse): void {
+  const botList = Array.from(bots.values()).map(b => ({
+    app_id: b.app_id,
+    bot_open_id: b.bot_open_id,
+    bot_name: b.bot_name,
+    group_count: b.group_chat_ids?.length ?? 0,
+    online: wsConnections.has(b.bot_open_id),
+  }));
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  send(res, 200, { ok: true, bots: botList });
+}
+
+function handleApiStats(_req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse): void {
+  const totalMessages = (db.prepare(`SELECT COUNT(*) as c FROM messages`).get() as { c: number }).c;
+  const totalChats = (db.prepare(`SELECT COUNT(DISTINCT chat_id) as c FROM messages`).get() as { c: number }).c;
+  const totalBots = bots.size;
+  const onlineBots = wsConnections.size;
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const todayMessages = (db.prepare(`SELECT COUNT(*) as c FROM messages WHERE sent_at_ms >= ?`).get(todayStart.getTime()) as { c: number }).c;
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  send(res, 200, { ok: true, stats: { totalMessages, totalChats, totalBots, onlineBots, todayMessages } });
+}
+
 const server = createServer(async (req, res) => {
   const url = req.url ?? "/";
   const path = url.split("?")[0];
-  console.log("[registry] 请求 " + req.method + " " + path);
+  if (path !== "/health") console.log("[registry] 请求 " + req.method + " " + path);
+
+  // ── Existing endpoints ──
   if (req.method === "POST" && path === "/register") {
     await handleRegister(req, res);
     return;
@@ -425,11 +579,40 @@ const server = createServer(async (req, res) => {
     await handleCopy(req, res);
     return;
   }
-  if (req.method === "GET" && (path === "/" || path === "/health")) {
-    console.log("[registry] 健康检查 当前注册 bot 数=" + bots.size);
+  if (req.method === "GET" && path === "/health") {
     send(res, 200, { ok: true, bots: bots.size });
     return;
   }
+
+  // ── Community API ──
+  if (req.method === "GET" && path === "/api/messages") {
+    handleApiMessages(req, res);
+    return;
+  }
+  if (req.method === "GET" && path === "/api/chats") {
+    handleApiChats(req, res);
+    return;
+  }
+  if (req.method === "GET" && path === "/api/bots") {
+    handleApiBots(req, res);
+    return;
+  }
+  if (req.method === "GET" && path === "/api/stats") {
+    handleApiStats(req, res);
+    return;
+  }
+
+  // ── Static files (community frontend) ──
+  if (req.method === "GET") {
+    if (path === "/") {
+      const indexFile = join(COMMUNITY_DIR, "index.html");
+      if (serveStatic(res, indexFile)) return;
+    } else {
+      const filePath = join(COMMUNITY_DIR, path);
+      if (serveStatic(res, filePath)) return;
+    }
+  }
+
   console.warn("[registry] 未知路径 " + req.method + " " + path);
   send(res, 404, { error: "Not Found" });
 });
