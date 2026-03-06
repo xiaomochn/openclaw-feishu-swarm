@@ -7,6 +7,7 @@ import { probeFeishu } from "../probe.js";
 import { listFeishuDirectoryGroupsLive } from "../directory.js";
 import { listEnabledFeishuAccounts, CHANNEL_KEY } from "../accounts.js";
 
+
 const INBOUND_PATH = `/channels/${CHANNEL_KEY}/bot-registry/inbound`;
 
 export type RegisterResult = { ok: true } | { ok: false; error: string };

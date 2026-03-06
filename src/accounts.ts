@@ -9,6 +9,7 @@ import type {
 
 /**
  * Channel key used in openclaw.json (channels.<key>).
+ * Change this if your plugin registers under a different channel name.
  */
 export const CHANNEL_KEY = "feishu-swarm";
 
