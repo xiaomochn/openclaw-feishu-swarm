@@ -179,13 +179,18 @@ export function init(options: InitOptions): void {
           resolvedBotName = probe.botName ?? "";
           setCachedBotIdentity(acctCfg.appId, probe.botOpenId, label, probe.botName);
 
-          const groups = await listFeishuDirectoryGroupsLive({ cfg: typedCfg, limit: 200 });
-          const group_chat_ids = groups.map((g: { id: string }) => g.id);
+          let group_chat_ids: string[] = [];
+          try {
+            const groups = await listFeishuDirectoryGroupsLive({ cfg: typedCfg, limit: 200 });
+            group_chat_ids = groups.map((g: { id: string }) => g.id);
+          } catch (err) {
+            console.warn("[feishu bot-registry:" + label + "] 获取群列表失败，继续注册（Registry 将通过消息自动学习）:", err instanceof Error ? err.message : err);
+          }
 
           const base = reg ? reg.inboundBaseUrl.replace(/\/$/, "") : "";
           const inbound_url = base ? `${base}${INBOUND_PATH}` : "";
 
-          console.log("[feishu bot-registry:" + label + "] 群列表数量:", group_chat_ids.length);
+          console.log("[feishu bot-registry:" + label + "] 群列表数量:", group_chat_ids.length, group_chat_ids.length === 0 ? "(将通过消息自动学习)" : "");
 
           return {
             app_id: acctCfg.appId,

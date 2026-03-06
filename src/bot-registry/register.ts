@@ -59,13 +59,20 @@ export async function buildRegistrationPayload(params: {
   // Cache identity for notifySent
   setCachedBotIdentity(feishuCfg.appId, probe.botOpenId, undefined, probe.botName);
 
-  const groups = await listFeishuDirectoryGroupsLive({ cfg, limit: 200 });
-  const group_chat_ids = groups.map((g) => g.id);
+  // Try to fetch group list, but don't fail registration if permission is missing.
+  // Registry will auto-learn group membership from copy messages (no im:chat needed).
+  let group_chat_ids: string[] = [];
+  try {
+    const groups = await listFeishuDirectoryGroupsLive({ cfg, limit: 200 });
+    group_chat_ids = groups.map((g) => g.id);
+  } catch (err) {
+    console.warn("[feishu bot-registry] 获取群列表失败（可能缺少 im:chat 权限），继续注册（Registry 将通过消息自动学习群关系）:", err instanceof Error ? err.message : err);
+  }
 
   const base = reg ? reg.inboundBaseUrl.replace(/\/$/, "") : "";
   const inbound_url = base ? `${base}${INBOUND_PATH}` : "";
 
-  console.log("[feishu bot-registry] 群列表数量:", group_chat_ids.length, "前5个:", group_chat_ids.slice(0, 5).join(", ") + (group_chat_ids.length > 5 ? "…" : ""));
+  console.log("[feishu bot-registry] 群列表数量:", group_chat_ids.length, group_chat_ids.length > 0 ? ("前5个: " + group_chat_ids.slice(0, 5).join(", ") + (group_chat_ids.length > 5 ? "…" : "")) : "(将通过消息自动学习)");
 
   return {
     app_id: feishuCfg.appId,
@@ -113,8 +120,13 @@ export async function buildAllRegistrationPayloads(params: {
 
       setCachedBotIdentity(acctCfg.appId, probe.botOpenId, account.accountId, probe.botName);
 
-      const groups = await listFeishuDirectoryGroupsLive({ cfg, limit: 200 });
-      const group_chat_ids = groups.map((g: { id: string }) => g.id);
+      let group_chat_ids: string[] = [];
+      try {
+        const groups = await listFeishuDirectoryGroupsLive({ cfg, limit: 200 });
+        group_chat_ids = groups.map((g: { id: string }) => g.id);
+      } catch (err) {
+        console.warn("[feishu bot-registry] 获取群列表失败 (account=" + account.accountId + ")，继续注册:", err instanceof Error ? err.message : err);
+      }
 
       const base = reg ? reg.inboundBaseUrl.replace(/\/$/, "") : "";
       const inbound_url = base ? `${base}${INBOUND_PATH}` : "";

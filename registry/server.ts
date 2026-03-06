@@ -310,6 +310,16 @@ async function processCopy(body: CopyPayload, source: string): Promise<{ ok: boo
   }
   const contentPreview = String(body.content).slice(0, 80) + (String(body.content).length > 80 ? "…" : "");
   console.log("[registry] 抄送 发送者=" + body.sender_bot_id, "群=" + body.chat_id, "消息id=" + body.message_id, "回复id=" + (body.reply_to_message_id ?? "无"), "内容=" + contentPreview, "(via " + source + ")");
+
+  // ── Auto-learn group membership from copy messages ─────────────────────
+  // When a bot sends a copy, it proves it is in that chat. Add the chat_id
+  // to its group_chat_ids if not already present (no im:chat permission needed).
+  const senderBot = bots.get(body.sender_bot_id);
+  if (senderBot && !senderBot.group_chat_ids.includes(body.chat_id)) {
+    senderBot.group_chat_ids.push(body.chat_id);
+    saveBots();
+    console.log("[registry] 自动学习群成员: bot=" + body.sender_bot_id + " 新增群=" + body.chat_id + " 总群数=" + senderBot.group_chat_ids.length);
+  }
   const copyKey = `${body.chat_id}:${body.message_id}:${body.sender_bot_id}`;
   if (seenCopyKeys.has(copyKey)) {
     console.log("[registry] 抄送跳过：重复 key=" + copyKey);
