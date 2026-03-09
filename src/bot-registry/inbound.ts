@@ -60,20 +60,17 @@ async function dispatchInbound(
     console.log("[feishu bot-registry] 入站路由(自动) sessionKey=" + route.sessionKey, "agentId=" + route.agentId);
   }
 
-  // Determine WasMentioned: true if the content @mentions the receiving bot.
-  // Because Feishu open_ids are per-app (app A sees bot B with a different open_id than bot B sees itself),
-  // we check multiple signals:
-  // 1. Direct open_id match in content
-  // 2. The `targeted` flag set by Registry when this bot was a specific @mention target (not just broadcast)
+  // Determine WasMentioned: true ONLY if the content explicitly @mentions the receiving bot.
+  // We intentionally ignore the `targeted` flag from Registry — it indicates routing intent
+  // (which bots should see this message) but NOT that the bot was @mentioned by a user.
+  // Trusting `targeted` caused infinite reply loops: bot A replies → Registry forwards to bot B
+  // with targeted=true → bot B thinks it was @mentioned → replies → Registry forwards back → loop.
   let wasMentioned = false;
   if (targetBotOpenId && content) {
     wasMentioned = content.includes(targetBotOpenId);
   }
-  // Registry sets targeted=true when the bot was forwarded due to @mention resolution (not broadcast)
-  if (!wasMentioned && (body as { targeted?: boolean }).targeted === true) {
-    wasMentioned = true;
-  }
-  console.log("[feishu bot-registry] 入站 @检测 targetBot=" + (targetBotOpenId ?? "?"), "wasMentioned=" + wasMentioned, "targeted=" + String((body as { targeted?: boolean }).targeted ?? false));
+  const registryTargeted = (body as { targeted?: boolean }).targeted ?? false;
+  console.log("[feishu bot-registry] 入站 @检测 targetBot=" + (targetBotOpenId ?? "?"), "wasMentioned=" + wasMentioned, "targeted=" + String(registryTargeted), "(targeted ignored for mention)");
 
   const envelopeOptions = core.channel.reply.resolveEnvelopeFormatOptions(cfg);
   const speaker = body.sender_bot_name ?? senderBotId;
