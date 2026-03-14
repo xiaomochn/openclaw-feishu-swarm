@@ -867,7 +867,8 @@ export async function handleFeishuMessage(params: {
     return;
   }
 
-  let ctx = parseFeishuMessageEvent(event, botOpenId, botName ?? account.config?.botName);
+  const effectiveBotName = botName ?? account.name;
+  let ctx = parseFeishuMessageEvent(event, botOpenId, effectiveBotName);
   const isGroup = ctx.chatType === "group";
   const isDirect = !isGroup;
   const senderUserId = event.sender.sender_id.user_id?.trim() || undefined;
