@@ -463,16 +463,23 @@ function checkBotMentioned(event: FeishuMessageEvent, botOpenId?: string, botNam
   if (mentions.length > 0) {
     return mentions.some((m) => {
       if (m.id.open_id !== botOpenId) return false;
-      // Guard against Feishu WS open_id remapping in multi-app groups:
-      // if botName is known and mention name differs, this is a false positive.
-      if (botName && m.name && m.name !== botName) return false;
+      // Guard against Feishu WS open_id remapping in multi-app groups.
+      // In practice, mentions.open_id can appear to match this bot even when the
+      // actual @ target was a different bot/app. To avoid false positives, require
+      // a name match when Feishu provides a mention name. If we do not know our own
+      // botName yet, fail closed instead of replying to the wrong mention.
+      if (!botName) return false;
+      if (!m.name || m.name !== botName) return false;
       return true;
     });
   }
-  // Post (rich text) messages may have empty message.mentions when they contain docs/paste
+  // Post (rich text) messages may have empty message.mentions when they contain docs/paste.
+  // Apply the same fail-closed rule here: without botName we cannot safely distinguish
+  // between multiple bots that may share/remap identifiers in group deliveries.
   if (event.message.message_type === "post") {
-    const { mentionedOpenIds } = parsePostContent(event.message.content);
-    return mentionedOpenIds.some((id) => id === botOpenId);
+    if (!botName) return false;
+    const { mentionedOpenIds, textContent } = parsePostContent(event.message.content);
+    return mentionedOpenIds.some((id) => id === botOpenId) && textContent.includes(`@${botName}`);
   }
   return false;
 }

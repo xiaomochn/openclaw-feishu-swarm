@@ -72,7 +72,7 @@ describe("parseFeishuMessageEvent – mentionedBot", () => {
     const event = makeEvent("group", [
       { key: "@_user_1", name: "Bot", id: { open_id: BOT_OPEN_ID } },
     ]);
-    const ctx = parseFeishuMessageEvent(event as any, BOT_OPEN_ID);
+    const ctx = parseFeishuMessageEvent(event as any, BOT_OPEN_ID, "Bot");
     expect(ctx.mentionedBot).toBe(true);
   });
 
@@ -89,6 +89,22 @@ describe("parseFeishuMessageEvent – mentionedBot", () => {
       { key: "@_user_1", name: "Alice", id: { open_id: "ou_alice" } },
     ]);
     const ctx = parseFeishuMessageEvent(event as any, undefined);
+    expect(ctx.mentionedBot).toBe(false);
+  });
+
+  it("returns mentionedBot=false when open_id matches but botName is unavailable", () => {
+    const event = makeEvent("group", [
+      { key: "@_user_1", name: "OtherBot", id: { open_id: BOT_OPEN_ID } },
+    ]);
+    const ctx = parseFeishuMessageEvent(event as any, BOT_OPEN_ID);
+    expect(ctx.mentionedBot).toBe(false);
+  });
+
+  it("returns mentionedBot=false when open_id matches but mention name does not match botName", () => {
+    const event = makeEvent("group", [
+      { key: "@_user_1", name: "OtherBot", id: { open_id: BOT_OPEN_ID } },
+    ]);
+    const ctx = parseFeishuMessageEvent(event as any, BOT_OPEN_ID, "Bot");
     expect(ctx.mentionedBot).toBe(false);
   });
 
@@ -128,7 +144,7 @@ describe("parseFeishuMessageEvent – mentionedBot", () => {
         [{ tag: "text", text: "What does this document say" }],
       ],
     });
-    const ctx = parseFeishuMessageEvent(event as any, BOT_OPEN_ID);
+    const ctx = parseFeishuMessageEvent(event as any, BOT_OPEN_ID, "claw");
     expect(ctx.mentionedBot).toBe(true);
   });
 
@@ -144,6 +160,17 @@ describe("parseFeishuMessageEvent – mentionedBot", () => {
     const event = makePostEvent({
       content: [
         [{ tag: "at", user_id: "ou_other", user_name: "other" }],
+        [{ tag: "text", text: "hello" }],
+      ],
+    });
+    const ctx = parseFeishuMessageEvent(event as any, "ou_bot_123", "Bot");
+    expect(ctx.mentionedBot).toBe(false);
+  });
+
+  it("returns mentionedBot=false for post message when botName is unavailable", () => {
+    const event = makePostEvent({
+      content: [
+        [{ tag: "at", user_id: "ou_bot_123", user_name: "claw" }],
         [{ tag: "text", text: "hello" }],
       ],
     });
