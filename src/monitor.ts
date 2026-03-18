@@ -66,10 +66,14 @@ export async function monitorFeishuProvider(opts: MonitorFeishuOpts = {}): Promi
     }
 
     // Probe sequentially so large multi-account startups do not burst Feishu's bot-info endpoint.
-    const botOpenId = await fetchBotOpenIdForMonitor(account, {
-      runtime: opts.runtime,
-      abortSignal: opts.abortSignal,
-    });
+    // Skip probe when a config-level botOpenId override is present (cross-tenant scenarios).
+    const configBotOpenId = account.config.botOpenId?.trim();
+    const botOpenId = configBotOpenId
+      ? configBotOpenId
+      : await fetchBotOpenIdForMonitor(account, {
+          runtime: opts.runtime,
+          abortSignal: opts.abortSignal,
+        });
 
     if (opts.abortSignal?.aborted) {
       log("feishu: abort signal received during startup preflight; stopping startup");

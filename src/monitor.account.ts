@@ -498,13 +498,15 @@ export async function monitorSingleAccount(params: MonitorSingleAccountParams): 
   const { accountId } = account;
   const log = runtime?.log ?? console.log;
 
+  const configBotOpenId = account.config.botOpenId?.trim();
   const botOpenIdSource = params.botOpenIdSource ?? { kind: "fetch" };
-  const botOpenId =
-    botOpenIdSource.kind === "prefetched"
+  const botOpenId = configBotOpenId
+    ? configBotOpenId
+    : botOpenIdSource.kind === "prefetched"
       ? botOpenIdSource.botOpenId
       : await fetchBotOpenIdForMonitor(account, { runtime, abortSignal });
   botOpenIds.set(accountId, botOpenId ?? "");
-  log(`feishu[${accountId}]: bot open_id resolved: ${botOpenId ?? "unknown"}`);
+  log(`feishu[${accountId}]: bot open_id resolved: ${botOpenId ?? "unknown"}${configBotOpenId ? " (config override)" : ""}`);
 
   const connectionMode = account.config.connectionMode ?? "websocket";
   if (connectionMode === "webhook" && !account.verificationToken?.trim()) {

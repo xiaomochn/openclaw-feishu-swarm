@@ -113,9 +113,15 @@ cp -r . ~/.openclaw/extensions/feishu-swarm/
     }
   },
 
-  // Agent 绑定（feishu-swarm 通道的 bot 需要单独绑定）
+  // Agent 绑定 — channel 必须和 bot 所在的通道一致
   "agents": {
     "bindings": [
+      // feishu 通道的 bot → channel: "feishu"
+      {
+        "match": { "channel": "feishu", "accountId": "main" },
+        "agentId": "feishu-main"
+      },
+      // feishu-swarm 通道的 bot → channel: "feishu-swarm"
       {
         "match": { "channel": "feishu-swarm", "accountId": "botA" },
         "agentId": "feishu-botA"
